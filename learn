@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+​
+"""
+Created on Tue Mon 4 15:30:17 2024
+Script to automate renaming of orderRoute geoJSON files
+and removal of speed information.
+​
+Steps to implement:
+1. Get a list of all files with the ending '.geojson' in the folder.
+2. For each file:
+    a) open the file and read the content.
+    b) Find the first timestamp
+    c) Convert the timestamp to human-readable format %Y-%M-%D %hh:%mm:%ss"
+    d) Find and replace all speed information.
+    e) Close file.
+    f) Rename file to "timestamp_orderRoute.geojson"
+    
+16.03.2024 21:08
+Implemented only the renaming of the file based on time information.
+Asked chatGPT too late how to remove the speed information without having write new files.
+​
+"""
+​
+import os
+import re
+from datetime import datetime
+from typing import List
+# Packege pytz must be installed to take into account the time zones and daylight saving times
+import pytz
+​
+#Code copied from chatGPT, easier to run than working with pathlib.  
+def find_geojson_files(directory:str) -> List:
+    geojson_files = []
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            if file.endswith('.geojson'):
+                geojson_files.append(os.path.join(root, file))
+    return geojson_files
+​
+# Folder to search
+folder_list:List = ['./User ID 100052599', './User ID 179541981']
+timezone = 'Europe/Berlin'
+tz = pytz.timezone(timezone)
+# Find all GeoJSON files
+geojson_files:List = []
+timestamps:List = []
+for dir in folder_list:
+    geojson_files=find_geojson_files(dir)
+​
+    # Iterate over all files
+    for file in geojson_files:
+        with open(file, 'r') as f:
+            content = f.read()
+            
+            # Remove speed information -> Code was added after I had already removed speed information via VS Code
+            modified_content = re.sub(r'"speed_kph":\d+', '', content)
+            f.seek(0)
+            f.write(modified_content)
+            f.truncate()
+        
+        # Find first timestamp, convert it to seconds from milliseconds and adjust the timezone
+        search_pattern:str = r'"timestamp":(\d+)'
+        first_timestamp:float = int(re.search(search_pattern,content).group(1))/1000
+        timestamp_converted:str = datetime.fromtimestamp(first_timestamp,tz).strftime('%d.%m.%Y_%H:%M:%S')
+        
+        
+        
+        #Rename file
+        _, file_extension = os.path.splitext(file)
+        new_file_name = timestamp_converted + file_extension
+        new_file_path = os.path.join(os.path.dirname(file), new_file_name)
+        os.rename(file,new_file_path)
+        print(f"Renamed {file} to {new_file_path}")
+    
+    
